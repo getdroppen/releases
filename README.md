@@ -179,7 +179,7 @@ account:
 ## License
 
 Droppen is licensed under the GNU Affero General Public License v3.0 only
-(AGPL-3.0-only); see [LICENSE](LICENSE). Copyright © 2026 Kilerd.
+(AGPL-3.0-only); see [LICENSE](LICENSE). Copyright © 2026 droppen.app.
 
 Every release includes `THIRD_PARTY_NOTICES`: the third-party software in the
 server, with its licenses.
@@ -329,7 +329,7 @@ rm ~/.config/systemd/user/droppen.service ~/.local/share/remote-hand/bin/remote-
 
 ### 许可证
 
-Droppen 以 GNU Affero General Public License v3.0 only（AGPL-3.0-only）授权，见 [LICENSE](LICENSE)。Copyright © 2026 Kilerd。
+Droppen 以 GNU Affero General Public License v3.0 only（AGPL-3.0-only）授权，见 [LICENSE](LICENSE)。Copyright © 2026 droppen.app。
 
 每个版本都附带 `THIRD_PARTY_NOTICES`，列出服务端包含的第三方软件及其许可证。
 
