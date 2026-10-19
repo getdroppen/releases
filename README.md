@@ -13,7 +13,7 @@ nothing else. The source code will be published at
 **For everyday use, install the Droppen desktop App**: `Droppen-<version>.dmg` on
 the [Releases page](https://github.com/getdroppen/releases/releases/latest). The
 installer below is the **server install**, for running Droppen in the
-background, on a headless Mac or on a Linux machine.
+background, on a Mac with no screen or on a Linux device.
 
 ## Install the server
 
@@ -25,38 +25,43 @@ user Droppen should run as: no `sudo`, and not as root.
 curl -fsSL https://droppen.app/install.sh | sh
 ```
 
-### On a headless machine: join your account with a code
+### On a device with no screen: add it to your account with a code
 
-On droppen.app, choose **Add a computer** to get a one-time code, then run:
+On droppen.app, open **my devices → add a device that runs AI → show a
+one-time code**, then run:
 
 ```sh
 curl -fsSL https://droppen.app/install.sh | DROPPEN_CODE=RH1-... sh
 ```
 
-The installer joins this machine to your account and starts it; confirm the
-machine on droppen.app while it waits (up to 10 minutes). No browser is needed
-on the machine. `sh -s -- --code RH1-...` does the same, but other users of a
-shared machine can see a command line while it runs; `DROPPEN_CODE` keeps the
-code out of it.
+The installer adds this device to your account and starts it. Keep the
+droppen.app page that showed the code open while it waits (up to 10 minutes):
+the page adds the device by itself. No browser is needed on the device. To type
+the code instead, run `sh -s -- --code -`; it is not echoed. The code is never
+taken from the command line, which other users of a shared device can read.
 
 `https://droppen.app/install.sh` is a redirect to [`install.sh`](install.sh) in
 this repository, so you can read exactly what runs. It:
 
 1. downloads the latest [release](https://github.com/getdroppen/releases/releases/latest)
-   for your machine and checks its SHA-256 against the release's `SHA256SUMS`;
-2. installs the server to `~/.local/share/remote-hand/bin/remote-hand-server`;
-3. creates the login for the local page: an account named after your user,
+   for your device and checks its SHA-256 against the release's `SHA256SUMS`;
+2. creates the login for the local page: an account named after your user,
    with a password you choose (at least 12 characters). Run without a
    terminal, it generates a password and prints it once;
-4. with a code, joins your Droppen account (`remote-hand-server agent enroll`);
+3. with a code, joins your Droppen account (`remote-hand-server agent enroll`);
+4. installs the server to `~/.local/share/remote-hand/bin/remote-hand-server`;
 5. runs the server as a service on `127.0.0.1:8700` or the next free port,
    restarted if it stops: a launchd user agent (`app.droppen.server`) on macOS,
    a systemd user service (`droppen.service`) on Linux;
 6. waits until the server answers and asks for a login, then, on a Mac or a
    Linux desktop and without a code, opens `http://127.0.0.1:<port>`.
 
-Without a code, sign in to that page with the account from step 3, then choose
-**「登录 Droppen」** (Sign in to Droppen) to connect the machine to your account.
+Steps 2 and 3 run the downloaded server before it replaces the installed one,
+so a step that fails, or a Ctrl-C, leaves the installed server as it was: one
+that was running keeps running.
+
+Without a code, sign in to that page with the account from step 2, then choose
+**「登录 Droppen」** (Sign in to Droppen) to add the device to your account.
 
 The server listens on `127.0.0.1` only and runs as you. The page never starts
 without a password: if the server ever answers without asking for one, the
@@ -96,7 +101,7 @@ Environment variables, for example
 ## Manual download
 
 From the [latest release](https://github.com/getdroppen/releases/releases/latest),
-download `SHA256SUMS` and the tarball for your machine:
+download `SHA256SUMS` and the tarball for your device:
 
 | file | for |
 |---|---|
@@ -140,7 +145,7 @@ rm -rf ~/.local/share/remote-hand ~/.config/remote-hand ~/Library/Logs/remote-ha
 ```
 
 On Linux, the logs live in `~/.local/state/remote-hand` instead of
-`~/Library/Logs/remote-hand`. If the machine joined your Droppen account, remove
+`~/Library/Logs/remote-hand`. If the device joined your Droppen account, remove
 it on droppen.app too.
 
 By hand, without the script:
@@ -163,7 +168,7 @@ rm ~/.config/systemd/user/droppen.service ~/.local/share/remote-hand/bin/remote-
 | settings | `~/.config/remote-hand/` |
 | the launchd agent (macOS) | `~/Library/LaunchAgents/app.droppen.server.plist` |
 | the systemd unit (Linux) | `~/.config/systemd/user/droppen.service`, or `/etc/systemd/system/droppen-<user>.service` with `--system` |
-| this machine's key, once it joined an account | `~/.local/share/remote-hand/instances/default/agent/` |
+| this device's key, once it joined an account | `~/.local/share/remote-hand/instances/default/agent/` |
 | logs | macOS: `~/Library/Logs/remote-hand/default.log`; Linux: the journal |
 
 The binary and its directories still carry Droppen's former name,
@@ -199,7 +204,7 @@ Claude Code 和 Codex 照常在你自己的 Mac 上跑；在手机或任何浏�
 这个仓库只放 Droppen 的**发布二进制**和安装脚本。源代码将发布在
 [github.com/getdroppen/droppen](https://github.com/getdroppen/droppen)。
 
-**日常使用请安装 Droppen 桌面 App**：[发布页](https://github.com/getdroppen/releases/releases/latest)上的 `Droppen-<版本>.dmg`。下面的安装脚本是**服务端安装**，用于在后台、无界面的 Mac 或 Linux 机器上运行 Droppen。
+**日常使用请安装 Droppen 桌面 App**：[发布页](https://github.com/getdroppen/releases/releases/latest)上的 `Droppen-<版本>.dmg`。下面的安装脚本是**服务端安装**，用于在后台、无界面的 Mac 或 Linux 设备上运行 Droppen。
 
 ### 安装服务端
 
@@ -209,26 +214,28 @@ macOS 11 及以上（Apple 芯片或 Intel），或 x86_64 / aarch64 的 Linux�
 curl -fsSL https://droppen.app/install.sh | sh
 ```
 
-### 无界面机器：用一次性代码加入账号
+### 无界面设备：用一次性注册码加入账号
 
-在 droppen.app 上选择**添加电脑**拿到一次性代码，然后运行：
+在 droppen.app 上打开**我的设备 → 添加可运行 AI 的设备 → 显示一次性注册码**，然后运行：
 
 ```sh
 curl -fsSL https://droppen.app/install.sh | DROPPEN_CODE=RH1-... sh
 ```
 
-安装脚本会把这台机器加入你的账号并启动服务；等待期间（最多 10 分钟）在 droppen.app 上确认这台机器即可，机器上不需要浏览器。`sh -s -- --code RH1-...` 效果相同，但在多人共用的机器上，运行期间其他用户能看到命令行；`DROPPEN_CODE` 不会把代码放进命令行。
+安装脚本会把这台设备加入你的账号并启动服务。等待期间（最多 10 分钟）请保持显示该注册码的 droppen.app 页面打开，它会自动添加这台设备；设备上不需要浏览器。想手动输入注册码，可运行 `sh -s -- --code -`，输入时不回显。注册码从不从命令行读取，因为多人共用的设备上其他用户能看到命令行。
 
 `https://droppen.app/install.sh` 会重定向到本仓库的 [`install.sh`](install.sh)，运行的内容都可以在这里看到。它会：
 
-1. 下载适合这台机器的最新[版本](https://github.com/getdroppen/releases/releases/latest)，并用该版本的 `SHA256SUMS` 校验 SHA-256；
-2. 把服务端装到 `~/.local/share/remote-hand/bin/remote-hand-server`；
-3. 为本地页面创建登录账号：用户名取你的用户名，密码由你设置（至少 12 个字符）。没有终端可交互时，会生成一个密码并只显示这一次；
-4. 带代码时，加入你的 Droppen 账号（`remote-hand-server agent enroll`）；
+1. 下载适合这台设备的最新[版本](https://github.com/getdroppen/releases/releases/latest)，并用该版本的 `SHA256SUMS` 校验 SHA-256；
+2. 为本地页面创建登录账号：用户名取你的用户名，密码由你设置（至少 12 个字符）。没有终端可交互时，会生成一个密码并只显示这一次；
+3. 带代码时，加入你的 Droppen 账号（`remote-hand-server agent enroll`）；
+4. 把服务端装到 `~/.local/share/remote-hand/bin/remote-hand-server`；
 5. 把服务端作为服务运行在 `127.0.0.1:8700`（被占用则用下一个空闲端口），退出后自动拉起：macOS 上是 launchd 用户代理（`app.droppen.server`），Linux 上是 systemd 用户服务（`droppen.service`）；
 6. 等服务端就绪并确认它要求登录后，在 Mac 或 Linux 桌面上、且没有代码时，打开 `http://127.0.0.1:<端口>`。
 
-没有代码时，用第 3 步的账号登录该页面，然后点 **「登录 Droppen」**，把这台机器接入你的账号。
+第 2、3 步运行的是刚下载的服务端，在它替换已安装的版本之前进行；所以任何一步失败或按下 Ctrl-C，已安装的服务端都保持原样：原本在运行的会继续运行。
+
+没有代码时，用第 2 步的账号登录该页面，然后点 **「登录 Droppen」**，把这台设备加入你的账号。
 
 服务端只监听 `127.0.0.1`，以你的用户身份运行。本地页面不会在没有密码的情况下启动：如果服务端不要求登录，安装脚本会把它停掉。
 
@@ -297,7 +304,7 @@ curl -fsSL https://droppen.app/install.sh | sh -s -- --uninstall
 rm -rf ~/.local/share/remote-hand ~/.config/remote-hand ~/Library/Logs/remote-hand
 ```
 
-Linux 上日志在 `~/.local/state/remote-hand`，而不是 `~/Library/Logs/remote-hand`。如果这台机器加入过你的 Droppen 账号，也请在 droppen.app 上把它移除。
+Linux 上日志在 `~/.local/state/remote-hand`，而不是 `~/Library/Logs/remote-hand`。如果这台设备加入过你的 Droppen 账号，也请在 droppen.app 上把它移除。
 
 不用脚本、手动卸载：
 
@@ -319,7 +326,7 @@ rm ~/.config/systemd/user/droppen.service ~/.local/share/remote-hand/bin/remote-
 | 设置 | `~/.config/remote-hand/` |
 | launchd 代理（macOS） | `~/Library/LaunchAgents/app.droppen.server.plist` |
 | systemd 单元（Linux） | `~/.config/systemd/user/droppen.service`；`--system` 时为 `/etc/systemd/system/droppen-<用户名>.service` |
-| 加入账号后这台机器的密钥 | `~/.local/share/remote-hand/instances/default/agent/` |
+| 加入账号后这台设备的密钥 | `~/.local/share/remote-hand/instances/default/agent/` |
 | 日志 | macOS：`~/Library/Logs/remote-hand/default.log`；Linux：journal |
 
 二进制和目录仍沿用 Droppen 的旧名 `remote-hand`，源代码公开时会一并改名。安装脚本使用服务端的 `default` 实例。如果你自己已经在运行 Droppen（remote-hand）服务端，脚本会列出它们、不做任何改动，也不会覆盖不是它安装的服务端。
