@@ -48,8 +48,9 @@ this repository, so you can read exactly what runs. It:
 2. creates the login for the local page: an account named after your user,
    with a password you choose (at least 12 characters). Run without a
    terminal, it generates a password and prints it once;
-3. with a code, joins your Droppen account (`remote-hand-server agent enroll`);
-4. installs the server to `~/.local/share/remote-hand/bin/remote-hand-server`;
+3. with a code, joins your Droppen account (`droppen agent enroll`);
+4. installs the server to `~/.local/share/remote-hand/bin/remote-hand-server`,
+   with the command `droppen` beside it (a link to the same file);
 5. runs the server as a service on `127.0.0.1:8700` or the next free port,
    restarted if it stops: a launchd user agent (`app.droppen.server`) on macOS,
    a systemd user service (`droppen.service`) on Linux;
@@ -105,20 +106,26 @@ download `SHA256SUMS` and the tarball for your device:
 
 | file | for |
 |---|---|
-| `remote-hand-<version>-macos-aarch64.tar.gz` | Apple silicon |
-| `remote-hand-<version>-macos-x86_64.tar.gz` | Intel Mac |
-| `remote-hand-<version>-macos-universal.tar.gz` | either Mac |
-| `remote-hand-<version>-linux-x86_64.tar.gz` | Linux x86_64, glibc 2.28+ |
-| `remote-hand-<version>-linux-aarch64.tar.gz` | Linux aarch64, glibc 2.28+ |
+| `droppen-<version>-macos-aarch64.tar.gz` | Apple silicon |
+| `droppen-<version>-macos-x86_64.tar.gz` | Intel Mac |
+| `droppen-<version>-macos-universal.tar.gz` | either Mac |
+| `droppen-<version>-linux-x86_64.tar.gz` | Linux x86_64, glibc 2.28+ |
+| `droppen-<version>-linux-aarch64.tar.gz` | Linux aarch64, glibc 2.28+ |
+
+Each holds the server twice under two names, `droppen` and
+`remote-hand-server` (the same program). Releases before v0.2.124 have only
+`remote-hand-<version>-…` tarballs; those names stay on every release until at
+least 2027-01-31, for older copies of the installer.
 
 Check it (`sha256sum -c SHA256SUMS --ignore-missing` on Linux). On Linux, follow
 `INSTALL.txt` in the tarball. On a Mac, install by hand:
 
 ```sh
 shasum -a 256 -c SHA256SUMS --ignore-missing   # must print "<file>: OK"
-tar -xzf remote-hand-*-macos-aarch64.tar.gz remote-hand-server
+tar -xzf droppen-*-macos-aarch64.tar.gz remote-hand-server
 mkdir -p ~/.local/share/remote-hand/bin
 mv remote-hand-server ~/.local/share/remote-hand/bin/
+ln -sf remote-hand-server ~/.local/share/remote-hand/bin/droppen
 # Downloaded with a browser? Clear the quarantine flag:
 xattr -d com.apple.quarantine ~/.local/share/remote-hand/bin/remote-hand-server
 # The local login, before the first start (a lower-case name):
@@ -153,10 +160,10 @@ By hand, without the script:
 ```sh
 # macOS
 launchctl bootout gui/$(id -u)/app.droppen.server
-rm ~/Library/LaunchAgents/app.droppen.server.plist ~/.local/share/remote-hand/bin/remote-hand-server*
+rm ~/Library/LaunchAgents/app.droppen.server.plist ~/.local/share/remote-hand/bin/remote-hand-server* ~/.local/share/remote-hand/bin/droppen
 # Linux
 systemctl --user disable --now droppen
-rm ~/.config/systemd/user/droppen.service ~/.local/share/remote-hand/bin/remote-hand-server*
+rm ~/.config/systemd/user/droppen.service ~/.local/share/remote-hand/bin/remote-hand-server* ~/.local/share/remote-hand/bin/droppen
 ```
 
 ## Where things are
@@ -311,10 +318,10 @@ Linux 上日志在 `~/.local/state/remote-hand`，而不是 `~/Library/Logs/remo
 ```sh
 # macOS
 launchctl bootout gui/$(id -u)/app.droppen.server
-rm ~/Library/LaunchAgents/app.droppen.server.plist ~/.local/share/remote-hand/bin/remote-hand-server*
+rm ~/Library/LaunchAgents/app.droppen.server.plist ~/.local/share/remote-hand/bin/remote-hand-server* ~/.local/share/remote-hand/bin/droppen
 # Linux
 systemctl --user disable --now droppen
-rm ~/.config/systemd/user/droppen.service ~/.local/share/remote-hand/bin/remote-hand-server*
+rm ~/.config/systemd/user/droppen.service ~/.local/share/remote-hand/bin/remote-hand-server* ~/.local/share/remote-hand/bin/droppen
 ```
 
 ### 文件位置
