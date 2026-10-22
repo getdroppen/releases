@@ -6,7 +6,7 @@
 # same releases page, is the recommended way.
 #
 #   curl -fsSL https://droppen.app/install.sh | sh                          install or upgrade
-#   curl -fsSL https://droppen.app/install.sh | DROPPEN_CODE=RH1-... sh     ... and join your account
+#   curl -fsSL https://droppen.app/install.sh | DROPPEN_CODE=<code> sh      ... and join your account
 #   curl -fsSL https://droppen.app/install.sh | sh -s -- --code -           (the same, typing the code)
 #   curl -fsSL https://droppen.app/install.sh | sh -s -- --system           Linux: a system service
 #   curl -fsSL https://droppen.app/install.sh | sh -s -- --uninstall        uninstall (keeps your data)
@@ -19,9 +19,10 @@
 #      to a file only you can read when nobody is watching the output);
 #   3. with a one-time code from droppen.app (my devices → add a device that
 #      runs AI → show a one-time code), joins this device to your Droppen
-#      account (`remote-hand-server agent enroll`), so it can be used from
+#      account (`droppen agent enroll`), so it can be used from
 #      droppen.app with no browser here at all;
-#   4. installs the server to ~/.local/share/remote-hand/bin/remote-hand-server
+#   4. installs the server to ~/.local/share/remote-hand/bin/remote-hand-server,
+#      with the command `droppen` beside it (a link to the same file),
 #      and runs it as a service on 127.0.0.1:8700 or the next free port,
 #      restarted if it stops: a launchd user agent (app.droppen.server) on macOS,
 #      a systemd user service (droppen.service) on Linux, or — with --system
@@ -43,21 +44,23 @@
 # command line either.
 #
 # Settings, all optional:
-#   DROPPEN_CODE=RH1-...       join the account the code is from
+#   DROPPEN_CODE=<code>        join the account the code is from
 #   DROPPEN_HUB=wss://...      the Droppen hub to join (default wss://droppen.app)
 #   DROPPEN_VERSION=v0.2.120   install this release instead of the latest
 #   DROPPEN_PORT=8700          the first port to try on a new install
 #   DROPPEN_USER=name          the first local account's name (default: your user name)
 #   DROPPEN_NO_OPEN=1          do not open the browser
-#   DROPPEN_SERVICE_PATH=...   the PATH the server runs with (default: common
-#                              tool directories plus your current PATH)
+#   DROPPEN_SERVICE_PATH=...   the PATH the server runs with (default: your
+#                              current PATH, then common tool directories)
 #   DROPPEN_RELEASE_BASE=...   where releases come from
 #                              (default https://github.com/getdroppen/releases/releases)
 #   DROPPEN_LABEL=...          the launchd label or systemd unit name
 #                              (default app.droppen.server / droppen)
 #
-# The binary, its data and its commands are still named remote-hand; they take
-# the Droppen name when the source is published at github.com/getdroppen/droppen.
+# The command is `droppen` (<data>/bin/droppen, also on the release as
+# droppen-<version>-<os>-<arch>.tar.gz). The binary the service runs, its data
+# and its log directories keep the remote-hand name, so an existing install,
+# its launchd job or systemd unit and its self-updates carry on unchanged.
 
 set -eu
 
@@ -68,7 +71,11 @@ HUB=${DROPPEN_HUB:-wss://droppen.app}
 # The instance this installer owns: `default`, the name a server takes when
 # nothing says otherwise. Two servers on one device need different instances.
 INSTANCE=default
+# The binary the service runs and the supervisor, self-update and rollback
+# manage: never renamed.
 BIN_NAME=remote-hand-server
+# The command people type: a link to it, beside it.
+CMD_NAME=droppen
 # The oldest glibc the Linux builds run on.
 GLIBC_MIN=2.28
 # Where droppen.app shows a one-time code.
@@ -86,7 +93,7 @@ On a Mac, the Droppen desktop App is the recommended way for everyday use:
 https://github.com/getdroppen/releases/releases/latest
 
   curl -fsSL https://droppen.app/install.sh | sh                        install or upgrade
-  curl -fsSL https://droppen.app/install.sh | DROPPEN_CODE=RH1-... sh   ... and join your account
+  curl -fsSL https://droppen.app/install.sh | DROPPEN_CODE=<code> sh    ... and join your account
   curl -fsSL https://droppen.app/install.sh | sh -s -- --code -         (the same, typing the code)
   curl -fsSL https://droppen.app/install.sh | sh -s -- --system         Linux: a system service (sudo)
   curl -fsSL https://droppen.app/install.sh | sh -s -- --uninstall      uninstall (keeps your data)
@@ -98,7 +105,7 @@ Options:
   -h, --help    this text
 
 Settings (environment):
-  DROPPEN_CODE=RH1-...      join the account the code is from
+  DROPPEN_CODE=<code>       join the account the code is from
                             (droppen.app: my devices → add a device that runs AI
                             → show a one-time code)
   DROPPEN_HUB=wss://...     the Droppen hub to join (default wss://droppen.app)
@@ -125,6 +132,7 @@ set_paths() {
   CONFIG_DIR=$HOME/.config/remote-hand
   BIN_DIR=$DATA_DIR/bin
   BIN=$BIN_DIR/$BIN_NAME
+  CMD=$BIN_DIR/$CMD_NAME
   # The binary the steps run: the downloaded one until it is installed.
   RUN_BIN=$BIN
   # What this installer writes to recognise its own install on the next run.
@@ -347,33 +355,53 @@ resolve_version() {
     || die "not a release version: $VERSION"
 }
 
+# The SHA-256 SHA256SUMS lists for a file, or nothing. Lines are
+# `<sha256>  ./<file>` (or without the ./, or with a * for binary mode).
+listed_sha256() { # file
+  awk -v f="$1" '{ n = $2; sub(/^\*/, "", n); sub(/^\.\//, "", n); if (n == f) { print $1; exit } }' "$TMP/SHA256SUMS"
+}
+
 download_and_verify() {
-  ASSET=remote-hand-$VERSION-$OS-$ARCH.tar.gz
   case "$BASE" in
     https://*) ;;
     *) warn "downloading over plain HTTP from $BASE (DROPPEN_RELEASE_BASE)" ;;
   esac
   step "Downloading Droppen $VERSION for $OS $ARCH"
-  fetch -o "$TMP/$ASSET" "$BASE/download/$VERSION/$ASSET" \
-    || die "could not download $BASE/download/$VERSION/$ASSET"
   fetch -o "$TMP/SHA256SUMS" "$BASE/download/$VERSION/SHA256SUMS" \
     || die "could not download $BASE/download/$VERSION/SHA256SUMS"
 
-  # Lines are `<sha256>  ./<file>` (or without the ./, or with a * for binary mode).
-  expected=$(awk -v f="$ASSET" '{ n = $2; sub(/^\*/, "", n); sub(/^\.\//, "", n); if (n == f) { print $1; exit } }' "$TMP/SHA256SUMS")
-  printf '%s\n' "$expected" | grep -Eq '^[0-9a-f]{64}$' || die "SHA256SUMS of $VERSION has no entry for $ASSET"
+  # The release's tarball under its new name, holding `droppen` (and the same
+  # file as `remote-hand-server`); else, for a release from before it had one
+  # or a download that fails, the one under the old name, holding
+  # `remote-hand-server`. Only a file SHA256SUMS lists is downloaded.
+  ASSET=""
+  tried=""
+  for candidate in "$CMD_NAME:$CMD_NAME-$VERSION-$OS-$ARCH.tar.gz" "$BIN_NAME:remote-hand-$VERSION-$OS-$ARCH.tar.gz"; do
+    member=${candidate%%:*}
+    file=${candidate#*:}
+    tried="$tried${tried:+ or }$file"
+    expected=$(listed_sha256 "$file")
+    printf '%s\n' "$expected" | grep -Eq '^[0-9a-f]{64}$' || continue
+    if fetch -o "$TMP/$file" "$BASE/download/$VERSION/$file"; then
+      ASSET=$file
+      MEMBER=$member
+      break
+    fi
+    warn "could not download $BASE/download/$VERSION/$file"
+  done
+  [ -n "$ASSET" ] || die "SHA256SUMS of $VERSION lists no $tried that could be downloaded; nothing was installed"
   actual=$(sha256_of "$TMP/$ASSET")
   [ "$actual" = "$expected" ] || die "checksum mismatch for $ASSET (expected $expected, got $actual); nothing was installed"
-  say "SHA-256 verified: $actual"
+  say "SHA-256 verified: $actual ($ASSET)"
 
   mkdir "$TMP/x"
-  tar -xzf "$TMP/$ASSET" -C "$TMP/x" "$BIN_NAME" || die "$ASSET does not contain $BIN_NAME"
+  tar -xzf "$TMP/$ASSET" -C "$TMP/x" "$MEMBER" || die "$ASSET does not contain $MEMBER"
   # Run from beside the installed binary, not from $TMP: a /tmp mounted
   # noexec runs nothing. Not a .staging-* name, which a starting server sweeps.
   mkdir -p "$BIN_DIR"
   NEW=$BIN_DIR/.installer-new
   STAGED=$NEW
-  cp "$TMP/x/$BIN_NAME" "$NEW"
+  cp "$TMP/x/$MEMBER" "$NEW"
   chmod 755 "$NEW"
   [ "$OS" != macos ] || xattr -d com.apple.quarantine "$NEW" 2>/dev/null || true
   NEW_VERSION=$(env -i PATH=/usr/bin:/bin "$NEW" --version 2>/dev/null) || die "the downloaded server does not run on this device"
@@ -429,6 +457,23 @@ install_binary() {
   fi
 }
 
+# Whether `droppen` beside the installed binary is the link this installer makes.
+our_link() { [ -L "$CMD" ] && [ "$(readlink "$CMD")" = "$BIN_NAME" ]; }
+
+# `droppen` beside the installed binary: a relative link, so it follows every
+# upgrade (the installer's, or a self-update's rename) and the directory if it
+# moves. Never over anything else already there, a link included.
+link_command() {
+  our_link && return 0
+  if [ -e "$CMD" ] || [ -L "$CMD" ]; then
+    warn "$CMD is not the link this installer makes, so it was left alone; run $BIN instead"
+    CMD=$BIN
+    return 0
+  fi
+  ln -sf "$BIN_NAME" "$BIN_DIR/.installer-link"
+  mv -f "$BIN_DIR/.installer-link" "$CMD"
+}
+
 default_user() {
   name=${DROPPEN_USER:-}
   [ -n "$name" ] || name=$(printf '%s' "$ME" | LC_ALL=C tr '[:upper:]' '[:lower:]')
@@ -451,9 +496,9 @@ nothing_changed() {
 }
 
 # The local page has its own login (accounts of this server, kept in its
-# instance). With no account the server answers anyone who reaches its port —
-# on a shared Linux device, every other user — so the first one is made
-# before the server is ever started.
+# instance). Enrolling refuses an instance without one, and the page would
+# otherwise wait in its setup state, so the first one is made before the
+# server is ever started.
 ensure_account() {
   step "Local login"
   listing=$(run_bin user list --instance "$INSTANCE") || die "could not read this server's accounts. $(nothing_changed)"
@@ -472,7 +517,7 @@ ensure_account() {
     tries=0
     until run_bin user add "$USER_NAME" --instance "$INSTANCE" </dev/tty; do
       tries=$((tries + 1))
-      [ "$tries" -lt 3 ] || die "no account was created (the server would be open to anyone who can reach it). $(nothing_changed) Run the installer again."
+      [ "$tries" -lt 3 ] || die "no account was created (the page would wait in its setup state, and adding this device to Droppen needs one). $(nothing_changed) Run the installer again."
       say "Try again. / 请重试。"
     done
     ACCOUNT_NOTE="$USER_NAME, with the password you just chose"
@@ -499,7 +544,7 @@ ensure_account() {
     say "Read it, keep it somewhere safe, and delete that file."
     ACCOUNT_NOTE="$USER_NAME, with the password in $CONFIG_DIR/initial-password"
   fi
-  say "Change it later with: $BIN user passwd $USER_NAME --instance $INSTANCE"
+  say "Change it later with: $CMD user passwd $USER_NAME --instance $INSTANCE"
 }
 
 # `instance default: enrolled`, `...: not enrolled (...)`, `...: enrolling (...)`.
@@ -578,7 +623,12 @@ service_path() {
   fi
   # A service does not read your shell profile: without this, `claude`,
   # `codex`, `node` and `git` would be missing from every session it starts.
-  path="$HOME/.local/bin:$HOME/.npm-global/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  # Your PATH first, so the server runs the `node` and `claude` your terminal
+  # runs (nvm's, say, rather than Homebrew's); then the usual places, as a
+  # fallback, whether or not they exist yet. Each directory once, where it
+  # first appears. The desktop app builds its server's PATH the same way
+  # (desktop/core/src/env_path.rs).
+  path=""
   old_ifs=$IFS
   IFS=:
   set -f
@@ -589,7 +639,12 @@ service_path() {
     esac
     case ":$path:" in *":$dir:"*) continue ;; esac
     case "$dir" in */remote-hand/instances/*) continue ;; esac # a session's own bin dir
-    [ -d "$dir" ] && path="$path:$dir"
+    [ -d "$dir" ] && path="${path:+$path:}$dir"
+  done
+  for dir in "$HOME/.local/bin" "$HOME/.npm-global/bin" "$HOME/.cargo/bin" "$HOME/.bun/bin" "$HOME/.volta/bin" \
+    /opt/homebrew/bin /usr/local/bin /usr/bin /bin /usr/sbin /sbin; do
+    case ":$path:" in *":$dir:"*) continue ;; esac
+    path="${path:+$path:}$dir"
   done
   set +f
   IFS=$old_ifs
@@ -619,8 +674,21 @@ EOF
 
 launchd_loaded() { launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; }
 
+# The server's logs, readable by this user alone: they say where the setup
+# code is and what the server did, which is nobody else's business on a shared
+# device. Made before anything writes them, so they never exist wider.
+private_logs() {
+  mkdir -p "$LOG_DIR"
+  chmod 700 "$LOG_DIR" 2>/dev/null || true
+  for log in "$@"; do
+    (umask 077 && : >>"$log")
+    chmod 600 "$log" 2>/dev/null || true
+  done
+}
+
 launchd_write() {
-  mkdir -p "$HOME/Library/LaunchAgents" "$LOG_DIR"
+  mkdir -p "$HOME/Library/LaunchAgents"
+  private_logs "$LOG_DIR/$INSTANCE.log" "$LOG_DIR/$INSTANCE.err.log"
   cat > "$TMP/service" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -857,7 +925,7 @@ manual_command() {
 
 # What manual_command does, for a server this installer stopped and puts back.
 manual_start() {
-  mkdir -p "$LOG_DIR"
+  private_logs "$LOG_DIR/$INSTANCE.log"
   (cd "$HOME" && APP_SERVER__HOST=127.0.0.1 APP_SERVER__PORT="$PORT" APP_INSTANCE="$INSTANCE" \
     nohup "$BIN" up -- serve >>"$LOG_DIR/$INSTANCE.log" 2>&1 </dev/null &)
 }
@@ -899,7 +967,7 @@ service_write() {
   case "$SERVICE" in
     launchd) launchd_write ;;
     systemd-user | systemd-system) systemd_write ;;
-    none) mkdir -p "$LOG_DIR"; SERVICE_CHANGED=0 ;;
+    none) private_logs "$LOG_DIR/$INSTANCE.log"; SERVICE_CHANGED=0 ;;
   esac
 }
 
@@ -1042,6 +1110,7 @@ do_install() {
   ENROLLED_NOW=""
   enroll
   install_binary
+  link_command
   RUN_BIN=$BIN
   step "Starting the server"
   RESTART=0
@@ -1091,6 +1160,7 @@ do_install() {
     say "  Join:       on droppen.app, $WHERE_CODES; then run the installer again with DROPPEN_CODE=<code>"
     say "  Local page: on this device only; from elsewhere, an SSH tunnel to port $PORT, signing in as $ACCOUNT_NOTE"
   fi
+  say "  Command:    $CMD (the server; $BIN_NAME is the same program)"
   say "  Service:    $(service_describe), port $PORT"
   say "  Data:       $DATA_DIR (instance $INSTANCE), $CONFIG_DIR"
   say "  Logs:       $(service_logs)"
@@ -1137,9 +1207,15 @@ do_uninstall() {
   if [ -n "$CONFLICT" ] && [ -e "$BIN" ]; then
     say "Kept $BIN: $CONFLICT."
   else
-    rm -f "$BIN" "$BIN.prev" "$BIN.bad" "$BIN_DIR"/.staging-*
+    rm -f "$BIN" "$BIN.prev" "$BIN.bad" "$BIN_DIR"/.staging-* "$BIN_DIR/.installer-link"
+    removed=$BIN
+    # The link, if it is ours (anything else there is not).
+    if our_link; then
+      rm -f "$CMD"
+      removed="$BIN and $CMD"
+    fi
     rmdir "$BIN_DIR" 2>/dev/null || true
-    say "Removed $BIN"
+    say "Removed $removed"
   fi
   # Kept, so the data stays recognised as ours, but with no service: the next
   # install chooses one afresh (a user service, or --system).
